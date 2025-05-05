@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { School } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
 
 export default function Login() {
   const [tab, setTab] = useState("login");
+  const navigate = useNavigate();
+
 
   const [loginData, setLoginData] = useState({ username: "", password: "" });
   const [registerData, setRegisterData] = useState({
@@ -16,6 +20,8 @@ export default function Login() {
   const handleLogin = (e) => {
     e.preventDefault();
     alert("Login submitted:\n" + JSON.stringify(loginData, null, 2));
+
+    navigate("/logged-home");
   };
 
   const handleRegister = (e) => {
