@@ -429,6 +429,54 @@ router.delete('/lecturers/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
+//Lecturer Class Assignment
+
+// Assign lecturer to class
+router.post('/lecturers/:id/assign-class', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { class_id } = req.body;
+
+    // Verify lecturer exists
+    const [lecturer] = await db.query('SELECT id FROM lecturers WHERE id = ?', [id]);
+    if (!lecturer.length) {
+      return res.status(404).json({ error: 'Lecturer not found' });
+    }
+
+    // Verify class exists
+    const [class_] = await db.query('SELECT id FROM classes WHERE id = ?', [class_id]);
+    if (!class_.length) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
+    // Check if already assigned
+    const [existing] = await db.query(
+      'SELECT id FROM lecturer_classes WHERE lecturer_id = ? AND class_id = ?',
+      [id, class_id]
+    );
+    if (existing.length) {
+      return res.status(400).json({ error: 'Lecturer already assigned to this class' });
+    }
+
+    await db.query(
+      'INSERT INTO lecturer_classes (lecturer_id, class_id) VALUES (?, ?)',
+      [id, class_id]
+    );
+
+    res.status(201).json({ 
+      message: 'Lecturer assigned to class successfully',
+      data: { lecturer_id: id, class_id }
+    });
+  } catch (error) {
+    console.error('Error assigning lecturer to class:', error);
+    res.status(500).json({ 
+      error: 'Failed to assign lecturer to class',
+      details: error.message 
+    });
+  }
+});
+
+
 // Add to admin.js routes
 
 // Get all rooms

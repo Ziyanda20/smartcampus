@@ -15,6 +15,7 @@ import BookingPage from './components/Booking/BookingPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import Unauthorized from './components/Unauthorized';
 import AdminDashboard from './components/admin/AdminDashboard';
+import LecturerClassAssignment from './components/admin/lecturers/LecturerClassAssignment';
 import StudentMaintenancePage from './components/Maintenance/StudentMaintenancePage';
 
 function App() {
@@ -41,6 +42,7 @@ function App() {
             {/* Admin routes */}
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/lecturers/assign" element={<LecturerClassAssignment />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/login" replace />} />
