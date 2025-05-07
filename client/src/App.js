@@ -16,6 +16,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Unauthorized from './components/Unauthorized';
 import AdminDashboard from './components/admin/AdminDashboard';
 import LecturerClassAssignment from './components/admin/lecturers/LecturerClassAssignment';
+import ScheduleView from './components/lecturer/ScheduleView';
 import StudentMaintenancePage from './components/Maintenance/StudentMaintenancePage';
 
 function App() {
@@ -37,6 +38,13 @@ function App() {
               <Route path="/booking" element={<BookingPage />} />
               <Route path="/maintenance" element={<StudentMaintenancePage />} />
              
+            </Route>
+
+            {/* Lecturer routes */}
+            <Route element={<ProtectedRoute allowedRoles={['lecturer', 'admin']} />}>
+              {/* Other lecturer routes... */}
+              <Route path="/lecturer/schedule" element={<ScheduleView />} />
+              <Route path="/lecturer/schedule/:id" element={<ScheduleView />} />
             </Route>
 
             {/* Admin routes */}
