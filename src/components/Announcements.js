@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Container, Card, Tabs, Tab, ListGroup } from "react-bootstrap";
 import NavBar from "../components/NavBar"; // Adjust the path if necessary
 
-// 🔹 Mock announcement data
+// Mock announcement data
 const mockAnnouncements = [
   { id: 1, title: "Exam Schedule Released", type: "important", date: "2025-04-20" },
   { id: 2, title: "Campus Clean-Up Drive", type: "recent", date: "2025-04-25" },

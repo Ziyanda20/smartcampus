@@ -11,6 +11,10 @@ import Timetable from "./components/Timetable";
 import Maintenance from "./components/Maintenance";
 import Announcements from "./components/Announcements";
 
+ /* Lecturer */
+import HomeLecturer from "./components/Lecturer/HomeLecturer";
+import BookingsLecturer from "./components/Lecturer/BookingsLecturer";
+
 function App() {
   return (
   
@@ -23,6 +27,11 @@ function App() {
           <Route path="/timetable" element={<Timetable />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/announcements" element={<Announcements />} />
+
+           {/*Lecturer */}
+          <Route path="/home-lecturer" element={<HomeLecturer />} />
+          <Route path="/booking-lecturer" element={<BookingsLecturer />} />
+
         </Routes>
       </Router>
     

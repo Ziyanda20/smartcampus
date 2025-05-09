@@ -9,7 +9,7 @@ export default function Navbar() {
 
 
   // User is logged in by default
-  const [user, setUser] = useState({ fullName: 'Jane Doe', username: 'janedoe' });
+  const [user, setUser] = useState({ fullName: 'Jack Doe', username: 'jackdoe' });
 
   const isActive = (path) => location.pathname === path;
 
@@ -47,27 +47,27 @@ export default function Navbar() {
         <div className="collapse navbar-collapse justify-content-center" id="navbarNav">
           <ul className="navbar-nav d-flex flex-row align-items-center">
             <li className="nav-item">
-              <Link to="/logged-home" className={linkClass('/logged-home')}>
+              <Link to="/home-lecturer" className={linkClass('/home-lecturer')}>
                 Home
               </Link>
             </li>
             <li className="nav-item">
-            <Link to="/bookings" className={linkClass('/bookings')}>
+            <Link to="/booking-lecturer" className={linkClass('/booking-lecturer')}>
                 Bookings
             </Link>
             </li>
             <li className="nav-item">
-              <Link to="/timetable" className={linkClass('/timetable')}>
+              <Link to="/timetable-lecturer" className={linkClass('/timetable-lecturer')}>
                 Timetable
               </Link>
             </li>
             <li className="nav-item">
-              <Link to="/maintenance" className={linkClass('/maintenance')}>
+              <Link to="/maintenance-lecturer" className={linkClass('/maintenance-lecturer')}>
                 Maintenance
               </Link>
             </li>
             <li className="nav-item">
-              <Link to="/announcements" className={linkClass('/announcements')}>
+              <Link to="/announcement-lecturer" className={linkClass('/announcement-lecturer')}>
                 Announcements
               </Link>
             </li>
