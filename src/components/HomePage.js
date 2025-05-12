@@ -2,10 +2,11 @@ import { GraduationCap, Calendar, Clock, Wrench, BellRing } from 'lucide-react';
 
 export default function HomePage({ user }) {
   return (
+
     <div className="container py-5">
       {/* Hero Section */}
       <section className="text-center py-5">
-        <h1 className="display-4 fw-bold">Welcome to Smart Campus Services Portal</h1>
+        <h1 className="display-4 fw-bold">Welcome to Campus Connect Services Portal</h1>
         <p className="lead text-muted">
           Your one-stop platform for campus resources, scheduling, and services.
         </p>
@@ -14,7 +15,7 @@ export default function HomePage({ user }) {
         <div className="position-relative my-5 bg-primary text-white rounded shadow overflow-hidden">
           <div className="p-5 text-center">
             <GraduationCap size={60} className="mb-3" />
-            <h2 className="h3">Smart Campus Services</h2>
+            <h2 className="h3">Campus Connect Services</h2>
             <p className="lead">Simplifying Campus Life</p>
           </div>
         </div>
@@ -22,7 +23,7 @@ export default function HomePage({ user }) {
         {/* About Paragraph */}
         <div className="mx-auto" style={{ maxWidth: "800px" }}>
           <p className="fs-5 text-secondary">
-            The Smart Campus Services Portal simplifies campus life by providing a centralized system
+            The Campus Connect Services Portal simplifies campus life by providing a centralized system
             for students, lecturers, and administrators to efficiently manage resources. Book study rooms,
             view class schedules, report maintenance issues, and stay updated with important announcements—
             all in one secure platform.
@@ -84,4 +85,5 @@ export default function HomePage({ user }) {
       )}
     </div>
   );
+
 }

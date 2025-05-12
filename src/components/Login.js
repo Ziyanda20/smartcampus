@@ -41,7 +41,7 @@ export default function Login() {
         <div className="col-lg-6 p-5 bg-white">
           <div className="text-center mb-4">
             <School size={40} className="text-primary mb-3" />
-            <h2 className="fw-bold">Smart Campus Services</h2>
+            <h2 className="fw-bold">Campus Connect Services</h2>
             <p className="text-muted">Sign In or Register to continue</p>
           </div>
 
@@ -158,7 +158,7 @@ export default function Login() {
         {/* Right Section (Banner/Info) */}
         <div className="col-lg-6 d-none d-lg-flex align-items-center justify-content-center bg-primary text-white p-5">
           <div>
-            <h3 className="fw-bold">Welcome to Smart Campus Services</h3>
+            <h3 className="fw-bold">Welcome to Campus Connect Services</h3>
             <p className="mt-3">
               Manage room bookings, class schedules, maintenance requests, announcements, and more—all in one place.
             </p>
