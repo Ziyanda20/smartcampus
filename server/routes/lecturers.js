@@ -47,3 +47,4 @@ router.get('/lecturers/:id/schedule',
       }
     }
   );
+

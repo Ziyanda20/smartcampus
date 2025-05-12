@@ -23,6 +23,7 @@ app.use('/maintenance', require('./routes/maintenance'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/schedule', require('./routes/schedule'));
 app.use('/admin', require('./routes/admin'));
+app.use('/lecturers', require('./routes/lecturers'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
