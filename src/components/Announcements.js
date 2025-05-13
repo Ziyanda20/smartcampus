@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Container, Card, Tabs, Tab, ListGroup } from "react-bootstrap";
-import NavBar from "../components/NavBar"; // Adjust the path if necessary
+import NavBar from "../components/NavBar";
 
 // Mock announcement data
 const mockAnnouncements = [

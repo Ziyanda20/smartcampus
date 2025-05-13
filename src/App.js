@@ -14,6 +14,8 @@ import Announcements from "./components/Announcements";
  /* Lecturer */
 import HomeLecturer from "./components/Lecturer/HomeLecturer";
 import BookingsLecturer from "./components/Lecturer/BookingsLecturer";
+import MaintenanceLecturer from "./components/Lecturer/MaintenanceLecturer";
+import AnnouncementLecturer from "./components/Lecturer/AnnouncementLecturer";
 
 function App() {
   return (
@@ -31,6 +33,8 @@ function App() {
            {/*Lecturer */}
           <Route path="/home-lecturer" element={<HomeLecturer />} />
           <Route path="/booking-lecturer" element={<BookingsLecturer />} />
+          <Route path="/maintenance-lecturer" element={<MaintenanceLecturer />} />
+          <Route path="/announcement-lecturer" element={<AnnouncementLecturer />} />
 
         </Routes>
       </Router>
