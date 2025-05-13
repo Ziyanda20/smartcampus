@@ -17,6 +17,9 @@ import BookingsLecturer from "./components/Lecturer/BookingsLecturer";
 import MaintenanceLecturer from "./components/Lecturer/MaintenanceLecturer";
 import AnnouncementLecturer from "./components/Lecturer/AnnouncementLecturer";
 
+/*Admin */
+import AnalyticsPage from "./components/Admin/AnalyticsPage";
+
 function App() {
   return (
   
@@ -35,6 +38,9 @@ function App() {
           <Route path="/booking-lecturer" element={<BookingsLecturer />} />
           <Route path="/maintenance-lecturer" element={<MaintenanceLecturer />} />
           <Route path="/announcement-lecturer" element={<AnnouncementLecturer />} />
+
+          {/*Admin */}
+          <Route path="/analytics-page" element={<AnalyticsPage />} />
 
         </Routes>
       </Router>
