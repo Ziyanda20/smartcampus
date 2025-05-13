@@ -68,21 +68,22 @@ const LecturerAnnouncementsPage = () => {
 
       <h3>Previous Announcements</h3>
       {loading ? (
-        <Spin />
+      <Spin />
       ) : (
-        <List
+      <List
           bordered
           dataSource={announcements}
+          locale={{ emptyText: 'No announcements yet' }}
           renderItem={item => (
-            <List.Item>
+          <List.Item>
               <List.Item.Meta
-                title={item.title}
-                description={item.message}
+              title={item.title}
+              description={item.message}
               />
-              <div>{new Date(item.created_at).toLocaleString()}</div>
-            </List.Item>
+          <div>{new Date(item.created_at).toLocaleString()}</div>
+          </List.Item>
           )}
-        />
+      />
       )}
     </Card>
   );
