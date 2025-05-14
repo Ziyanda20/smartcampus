@@ -10,8 +10,10 @@ export default function BookingsLecturer() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [roomNumber, setRoomNumber] = useState("");
+  const [building, setBuilding] = useState(""); // New state
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
+  const [selectedEndTime, setSelectedEndTime] = useState("");
 
   const [consultationBookings, setConsultationBookings] = useState([
     {
@@ -39,17 +41,22 @@ export default function BookingsLecturer() {
       id: bookings.length + 1,
       type: bookingType,
       room: roomNumber,
+      building: building,
       date: selectedDate,
       time: selectedTime,
+      endTime: selectedEndTime,
       status: "Pending",
     };
 
     setBookings([...bookings, newBooking]);
     setIsModalOpen(false);
 
+    // Reset fields
     setRoomNumber("");
+    setBuilding("");
     setSelectedDate("");
     setSelectedTime("");
+    setSelectedEndTime("");
   };
 
   const handleCancelBooking = (id) => {
@@ -101,7 +108,7 @@ export default function BookingsLecturer() {
                   className="border rounded p-3 mb-3 d-flex justify-content-between align-items-center"
                 >
                   <div>
-                    <h5>{`Study Room ${booking.room}`}</h5>
+                    <h5>{`Study Room ${booking.room} (${booking.building})`}</h5>
                     <p className="mb-1">{booking.date}</p>
                     <small>{booking.time}</small>
                   </div>
@@ -139,7 +146,7 @@ export default function BookingsLecturer() {
                   className="border rounded p-3 mb-3 d-flex justify-content-between align-items-center"
                 >
                   <div>
-                    <h5>{`Study Room ${booking.room}`}</h5>
+                    <h5>{`Study Room ${booking.room} (${booking.building})`}</h5>
                     <p className="mb-1">{booking.date}</p>
                     <small>{booking.time}</small>
                   </div>
@@ -170,32 +177,32 @@ export default function BookingsLecturer() {
                   </div>
                   <div className="text-end">
                     {booking.status !== "Pending" && (
-               <Badge
-                    bg={booking.status === "Accepted" ? "success" : "secondary"}
-                    className="mb-2"
-                >
-                {booking.status}
-               </Badge>
-            )}
-              {booking.status === "Pending" && (
-                <div className="d-flex gap-2">
-                <Button
-                  variant="outline-success"
-                  size="sm"
-                  onClick={() => handleAcceptConsultation(booking.id)}
-                >
-                     Approve
-                </Button>
-                <Button
-                   variant="outline-danger"
-                   size="sm"
-                   onClick={() => handleCancelConsultation(booking.id)}
-                 >
-                      Decline
-                </Button>
-                </div>
-            )}
-                </div>
+                      <Badge
+                        bg={booking.status === "Accepted" ? "success" : "secondary"}
+                        className="mb-2"
+                      >
+                        {booking.status}
+                      </Badge>
+                    )}
+                    {booking.status === "Pending" && (
+                      <div className="d-flex gap-2">
+                        <Button
+                          variant="outline-success"
+                          size="sm"
+                          onClick={() => handleAcceptConsultation(booking.id)}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleCancelConsultation(booking.id)}
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (
@@ -220,6 +227,21 @@ export default function BookingsLecturer() {
                   onChange={(e) => setBookingType(e.target.value)}
                 >
                   <option value="study-room">Study Room</option>
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Building</Form.Label>
+                <Form.Select
+                  value={building}
+                  onChange={(e) => setBuilding(e.target.value)}
+                  required
+                >
+                  <option value="">Select building</option>
+                  <option value="Main Campus Building A">Main Campus Building A</option>
+                  <option value="Science Block">Science Block</option>
+                  <option value="Library Complex">Library Complex</option>
+                  <option value="Engineering Hall">Engineering Hall</option>
                 </Form.Select>
               </Form.Group>
 
@@ -261,6 +283,26 @@ export default function BookingsLecturer() {
                   <option>14:00 PM</option>
                   <option>15:00 PM</option>
                   <option>16:00 PM</option>
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>End Time</Form.Label>
+                <Form.Select
+                  value={selectedEndTime}
+                  onChange={(e) => setSelectedEndTime(e.target.value)}
+                  required
+                >
+                  <option value="">Select time</option>
+                  <option>09:00 AM</option>
+                  <option>10:00 AM</option>
+                  <option>11:00 AM</option>
+                  <option>12:00 PM</option>
+                  <option>13:00 PM</option>
+                  <option>14:00 PM</option>
+                  <option>15:00 PM</option>
+                  <option>16:00 PM</option>
+                  <option>17:00 PM</option>
                 </Form.Select>
               </Form.Group>
 

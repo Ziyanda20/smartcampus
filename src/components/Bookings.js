@@ -3,7 +3,7 @@ import { Modal, Button, Tabs, Tab, Badge, Spinner, Form } from 'react-bootstrap'
 import Navbar from '../components/NavBar';
 
 export default function Bookings() {
-  const [key, setKey] = useState ('upcoming');
+  const [key, setKey] = useState('upcoming');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [bookingType, setBookingType] = useState('appointment');
   const [bookings, setBookings] = useState([]);
@@ -12,6 +12,8 @@ export default function Bookings() {
   const [lecturerName, setLecturerName] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [selectedBuilding, setSelectedBuilding] = useState('');
+  const [selectedEndTime, setSelectedEndTime] = useState('');
 
   const handleNewBooking = (e) => {
     e.preventDefault();
@@ -22,9 +24,10 @@ export default function Bookings() {
       name:
         bookingType === "appointment"
           ? `Appointment with ${lecturerName}`
-          : "Study Room",
+          : `Study Room - ${selectedBuilding}`,
       date: selectedDate,
       time: selectedTime,
+      endTime: selectedEndTime,
       status: "Pending",
     };
 
@@ -35,6 +38,8 @@ export default function Bookings() {
     setLecturerName('');
     setSelectedDate('');
     setSelectedTime('');
+    setSelectedBuilding('');
+    setSelectedEndTime('');
   };
 
   const handleCancelBooking = (id) => {
@@ -154,6 +159,22 @@ export default function Bookings() {
                 </Form.Group>
               )}
 
+              {bookingType === "study-room" && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Select Building</Form.Label>
+                  <Form.Select
+                    value={selectedBuilding}
+                    onChange={(e) => setSelectedBuilding(e.target.value)}
+                    required
+                  >
+                    <option value="">Select building</option>
+                    <option>10-138</option>
+                    <option>14-1108</option>
+                    <option>10-G34</option>
+                  </Form.Select>
+                </Form.Group>
+              )}
+
               <Form.Group className="mb-3">
                 <Form.Label>Select Date</Form.Label>
                 <Form.Control
@@ -178,6 +199,26 @@ export default function Bookings() {
                   <option>12:00 PM</option>
                   <option>13:00 PM</option>
                   <option>14:00 PM</option>
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>End Time</Form.Label>
+                <Form.Select
+                  value={selectedEndTime}
+                  onChange={(e) => setSelectedEndTime(e.target.value)}
+                  required
+                >
+                  <option value="">Select time</option>
+                  <option>09:00 AM</option>
+                  <option>10:00 AM</option>
+                  <option>11:00 AM</option>
+                  <option>12:00 PM</option>
+                  <option>13:00 PM</option>
+                  <option>14:00 PM</option>
+                  <option>15:00 PM</option>
+                  <option>16:00 PM</option>
+                  <option>17:00 PM</option>
                 </Form.Select>
               </Form.Group>
 
