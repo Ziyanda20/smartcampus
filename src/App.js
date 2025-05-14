@@ -19,6 +19,9 @@ import AnnouncementLecturer from "./components/Lecturer/AnnouncementLecturer";
 
 /*Admin */
 import AnalyticsPage from "./components/Admin/AnalyticsPage";
+import MaintenanceManagement from "./components/Admin/MaintenanceManagement";
+import BookingsManagement from "./components/Admin/BookingsManagement";
+import TimetableManagement from "./components/Admin/TimetableManagement";
 
 function App() {
   return (
@@ -41,6 +44,9 @@ function App() {
 
           {/*Admin */}
           <Route path="/analytics-page" element={<AnalyticsPage />} />
+          <Route path="/maintenance-admin" element={<MaintenanceManagement />} />
+          <Route path="/bookings-admin" element={<BookingsManagement />} />
+          <Route path="/timetable-admin" element={<TimetableManagement />} />
 
         </Routes>
       </Router>

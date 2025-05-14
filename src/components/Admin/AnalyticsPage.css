@@ -1,0 +1,20 @@
+.left-sidebar {
+  background-color: #0056b3; /* Darker blue */
+  min-height: 100vh;
+}
+
+.left-sidebar .nav-link {
+  color: white;
+}
+
+.left-sidebar .nav-link.active {
+  background-color: #ffffff33;
+  color: #fff;
+  font-weight: bold;
+}
+
+.dashboard-header {
+  background-color: #007bff; /* Top bar */
+  padding: 1rem 2rem;
+  border-bottom: 4px solid #0056b3;
+}
