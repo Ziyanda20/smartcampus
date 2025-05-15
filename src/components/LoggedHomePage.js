@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CalendarDays, Clock, Wrench, Bell } from "lucide-react";
 import Navbar from "./NavBar"; // Adjust path if needed
-import api from "../api";
+import api from "../api"; // Your axios instance configured with baseURL
 import jwt_decode from "jwt-decode";
 
 export default function LoggedHomePage() {
@@ -23,7 +23,15 @@ export default function LoggedHomePage() {
       return;
     }
 
-    const decoded = jwt_decode(token);
+    let decoded;
+    try {
+      decoded = jwt_decode(token);
+    } catch {
+      setError("Invalid token.");
+      setLoading(false);
+      return;
+    }
+
     const userId = decoded.id || decoded.userId;
     const role = decoded.role;
     const name = decoded.fullName || decoded.name || decoded.username || "";
@@ -32,12 +40,12 @@ export default function LoggedHomePage() {
 
     const fetchData = async () => {
       try {
-        // Fetch schedule if lecturer
+        // If user is a lecturer, get schedule
         if (role === "lecturer") {
           await fetchLecturerSchedule(userId);
         }
 
-        // Fetch other stats regardless of role
+        // Fetch common stats (bookings, maintenance, announcements)
         await fetchOtherStats(userId, role);
 
         setLoading(false);
@@ -51,6 +59,7 @@ export default function LoggedHomePage() {
     fetchData();
   }, []);
 
+  // Fetch lecturer's schedule for today classes count
   const fetchLecturerSchedule = async (lecturerId) => {
     try {
       const response = await api.get(`/lecturers/${lecturerId}/schedule`);
@@ -69,30 +78,34 @@ export default function LoggedHomePage() {
       }));
     } catch (error) {
       console.error("Error fetching lecturer schedule:", error);
-      
+      // Could consider showing a message or fallback
     }
   };
 
+  // Fetch bookings, maintenance, announcements counts
   const fetchOtherStats = async (userId, role) => {
     try {
-      // Example API calls — replace endpoints and query params as per your backend
-
-      // Active Bookings
-      const bookingsRes = await api.get(
-        `/users/${userId}/bookings?status=active`
-      );
+      // Active bookings for the user
+      const bookingsRes = await api.get(`/users/${userId}/bookings`, {
+        params: { status: "active" },
+      });
       const activeBookings = bookingsRes.data.data?.length || 0;
 
-      // Pending Maintenance 
-      const maintenanceRes = await api.get(
-        `/maintenance-requests?status=pending&userId=${userId}`
-      );
+      // Pending maintenance requests for user (or all if admin)
+      const maintenanceParams =
+        role === "admin"
+          ? { status: "pending" }
+          : { status: "pending", userId };
+
+      const maintenanceRes = await api.get("/maintenance-requests", {
+        params: maintenanceParams,
+      });
       const pendingMaintenance = maintenanceRes.data.data?.length || 0;
 
-      // New Announcements (unread)
-      const announcementsRes = await api.get(
-        `/notifications?userId=${userId}&is_read=0`
-      );
+      // Unread announcements / notifications for user
+      const announcementsRes = await api.get("/notifications", {
+        params: { userId, is_read: 0 },
+      });
       const newAnnouncements = announcementsRes.data.data?.length || 0;
 
       setStats((prev) => ({
@@ -103,7 +116,7 @@ export default function LoggedHomePage() {
       }));
     } catch (error) {
       console.error("Error fetching other stats:", error);
-      // You could optionally set default 0 here
+      // Optionally set defaults here if you want
     }
   };
 
@@ -134,49 +147,32 @@ export default function LoggedHomePage() {
       <div className="container my-5">
         <div className="mb-4">
           <h2 className="h4">Welcome back, {firstName}!</h2>
-          <p className="text-muted">Here's what's happening across your campus today.</p>
+          <p className="text-muted">
+            Here's what's happening across your campus today.
+          </p>
         </div>
 
         <div className="row mb-5">
-          <div className="col-md-3 mb-3">
-            <div className="card text-center">
-              <div className="card-body">
-                <CalendarDays className="mb-2" />
-                <h5 className="card-title">Active Bookings</h5>
-                <p className="card-text">{stats.activeBookings}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-3 mb-3">
-            <div className="card text-center">
-              <div className="card-body">
-                <Clock className="mb-2" />
-                <h5 className="card-title">Classes Today</h5>
-                <p className="card-text">{stats.classesToday}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-3 mb-3">
-            <div className="card text-center">
-              <div className="card-body">
-                <Wrench className="mb-2" />
-                <h5 className="card-title">Pending Maintenance</h5>
-                <p className="card-text">{stats.pendingMaintenance}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-3 mb-3">
-            <div className="card text-center">
-              <div className="card-body">
-                <Bell className="mb-2" />
-                <h5 className="card-title">New Announcements</h5>
-                <p className="card-text">{stats.newAnnouncements}</p>
-              </div>
-            </div>
-          </div>
+          <StatCard
+            Icon={CalendarDays}
+            title="Active Bookings"
+            count={stats.activeBookings}
+          />
+          <StatCard
+            Icon={Clock}
+            title="Classes Today"
+            count={stats.classesToday}
+          />
+          <StatCard
+            Icon={Wrench}
+            title="Pending Maintenance"
+            count={stats.pendingMaintenance}
+          />
+          <StatCard
+            Icon={Bell}
+            title="New Announcements"
+            count={stats.newAnnouncements}
+          />
         </div>
 
         <div className="row">
@@ -196,7 +192,8 @@ export default function LoggedHomePage() {
               <div className="card-header">Announcements</div>
               <div className="card-body">
                 <p className="card-text">
-                  There are {stats.newAnnouncements} new announcements available.
+                  There are {stats.newAnnouncements} new announcements
+                  available.
                 </p>
               </div>
             </div>
@@ -204,5 +201,20 @@ export default function LoggedHomePage() {
         </div>
       </div>
     </>
+  );
+}
+
+// Reusable small component for stats cards
+function StatCard({ Icon, title, count }) {
+  return (
+    <div className="col-md-3 mb-3">
+      <div className="card text-center">
+        <div className="card-body">
+          <Icon className="mb-2" />
+          <h5 className="card-title">{title}</h5>
+          <p className="card-text">{count}</p>
+        </div>
+      </div>
+    </div>
   );
 }
