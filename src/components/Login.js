@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { School } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
+import api from "../api";
 
 export default function Login() {
   const [tab, setTab] = useState("login");
@@ -12,26 +12,65 @@ export default function Login() {
   const [registerData, setRegisterData] = useState({
     fullName: "",
     username: "",
+    email: "",          // Added email
     password: "",
     confirmPassword: "",
     role: "student",
   });
 
-  const handleLogin = (e) => {
+  // Handle Login with backend API
+  const handleLogin = async (e) => {
     e.preventDefault();
-    alert("Login submitted:\n" + JSON.stringify(loginData, null, 2));
+    try {
+      const response = await api.post("/auth/login", {
+        username: loginData.username,
+        password: loginData.password,
+      });
 
-    navigate("/logged-home");
+      // Save token to localStorage
+      localStorage.setItem("token", response.data.token);
+
+      alert("Login successful!");
+      navigate("/logged-home");
+    } catch (error) {
+      alert(
+        error.response?.data?.error ||
+          "Login failed: Server or network error"
+      );
+    }
   };
 
-  const handleRegister = (e) => {
+  // Handle Registration with backend API
+  const handleRegister = async (e) => {
     e.preventDefault();
+
     if (registerData.password !== registerData.confirmPassword) {
       alert("Passwords do not match");
       return;
     }
-    const { confirmPassword, ...data } = registerData;
-    alert("Registration submitted:\n" + JSON.stringify(data, null, 2));
+
+    try {
+      // Backend expects username, email, password, role is fixed to 'student' in backend
+      const data = {
+        username: registerData.username,
+        email: registerData.email,
+        password: registerData.password,
+        role: registerData.role, // <-- added this line
+      };
+
+      const response = await api.post("/auth/register", data);
+
+      localStorage.setItem("token", response.data.token);
+
+      alert("Registration successful! Please login.");
+
+      setTab("login"); // Switch to login tab after register
+    } catch (error) {
+      alert(
+        error.response?.data?.error ||
+          "Registration failed: Server or network error"
+      );
+    }
   };
 
   return (
