@@ -1,16 +1,131 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { CalendarDays, Clock, Wrench, Bell } from "lucide-react";
-import Navbar from "./NavBar"; // Adjust path as needed
+import Navbar from "./NavBar"; // Adjust path if needed
+import api from "../api";
+import jwt_decode from "jwt-decode";
 
 export default function LoggedHomePage() {
-  const user = { fullName: "John Doe" }; // Simulated user data
+  const [firstName, setFirstName] = useState("");
+  const [stats, setStats] = useState({
+    activeBookings: 0,
+    classesToday: 0,
+    pendingMaintenance: 0,
+    newAnnouncements: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const stats = {
-    activeBookings: 5,
-    classesToday: 3,
-    pendingMaintenance: 2,
-    newAnnouncements: 4,
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setError("You are not logged in.");
+      setLoading(false);
+      return;
+    }
+
+    const decoded = jwt_decode(token);
+    const userId = decoded.id || decoded.userId;
+    const role = decoded.role;
+    const name = decoded.fullName || decoded.name || decoded.username || "";
+
+    setFirstName(name.split(" ")[0] || "");
+
+    const fetchData = async () => {
+      try {
+        // Fetch schedule if lecturer
+        if (role === "lecturer") {
+          await fetchLecturerSchedule(userId);
+        }
+
+        // Fetch other stats regardless of role
+        await fetchOtherStats(userId, role);
+
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load dashboard data.");
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const fetchLecturerSchedule = async (lecturerId) => {
+    try {
+      const response = await api.get(`/lecturers/${lecturerId}/schedule`);
+      const schedule = response.data.data || [];
+
+      const todayName = new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+      });
+
+      const classesTodayCount = schedule.filter((cls) => cls.day === todayName)
+        .length;
+
+      setStats((prev) => ({
+        ...prev,
+        classesToday: classesTodayCount,
+      }));
+    } catch (error) {
+      console.error("Error fetching lecturer schedule:", error);
+      
+    }
   };
+
+  const fetchOtherStats = async (userId, role) => {
+    try {
+      // Example API calls — replace endpoints and query params as per your backend
+
+      // Active Bookings
+      const bookingsRes = await api.get(
+        `/users/${userId}/bookings?status=active`
+      );
+      const activeBookings = bookingsRes.data.data?.length || 0;
+
+      // Pending Maintenance 
+      const maintenanceRes = await api.get(
+        `/maintenance-requests?status=pending&userId=${userId}`
+      );
+      const pendingMaintenance = maintenanceRes.data.data?.length || 0;
+
+      // New Announcements (unread)
+      const announcementsRes = await api.get(
+        `/notifications?userId=${userId}&is_read=0`
+      );
+      const newAnnouncements = announcementsRes.data.data?.length || 0;
+
+      setStats((prev) => ({
+        ...prev,
+        activeBookings,
+        pendingMaintenance,
+        newAnnouncements,
+      }));
+    } catch (error) {
+      console.error("Error fetching other stats:", error);
+      // You could optionally set default 0 here
+    }
+  };
+
+  if (loading)
+    return (
+      <>
+        <Navbar />
+        <div className="container my-5">
+          <p>Loading dashboard...</p>
+        </div>
+      </>
+    );
+
+  if (error)
+    return (
+      <>
+        <Navbar />
+        <div className="container my-5">
+          <p className="text-danger">{error}</p>
+        </div>
+      </>
+    );
 
   return (
     <>
@@ -18,7 +133,7 @@ export default function LoggedHomePage() {
 
       <div className="container my-5">
         <div className="mb-4">
-          <h2 className="h4">Welcome back, {user.fullName.split(" ")[0]}!</h2>
+          <h2 className="h4">Welcome back, {firstName}!</h2>
           <p className="text-muted">Here's what's happening across your campus today.</p>
         </div>
 
@@ -69,7 +184,9 @@ export default function LoggedHomePage() {
             <div className="card">
               <div className="card-header">Upcoming Bookings</div>
               <div className="card-body">
-                <p className="card-text">You have 2 bookings this week.</p>
+                <p className="card-text">
+                  You have {stats.activeBookings} bookings this week.
+                </p>
               </div>
             </div>
           </div>
@@ -78,7 +195,9 @@ export default function LoggedHomePage() {
             <div className="card">
               <div className="card-header">Announcements</div>
               <div className="card-body">
-                <p className="card-text">There are 4 new announcements available.</p>
+                <p className="card-text">
+                  There are {stats.newAnnouncements} new announcements available.
+                </p>
               </div>
             </div>
           </div>
