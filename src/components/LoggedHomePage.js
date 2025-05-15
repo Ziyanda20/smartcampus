@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CalendarDays, Clock, Wrench, Bell } from "lucide-react";
 import Navbar from "./NavBar"; // Adjust path if needed
 import api from "../api"; // Your axios instance configured with baseURL
-import jwt_decode from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 
 export default function LoggedHomePage() {
   const [firstName, setFirstName] = useState("");
@@ -25,7 +25,7 @@ export default function LoggedHomePage() {
 
     let decoded;
     try {
-      decoded = jwt_decode(token);
+      decoded = jwtDecode(token);
     } catch {
       setError("Invalid token.");
       setLoading(false);
