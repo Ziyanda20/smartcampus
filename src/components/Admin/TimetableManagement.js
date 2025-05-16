@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Card, Form, Button, Table, Row, Col, Alert, Container, Nav } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
-import api from "../../api"; // Your axios instance configured with baseURL
+import api from "../../api";
 
 const TimetableManagement = () => {
   const [timetable, setTimetable] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [lecturers, setLecturers] = useState([]);
   const [form, setForm] = useState({
     day: "",
     time: "",
@@ -17,20 +19,55 @@ const TimetableManagement = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchTimetable = async () => {
-      try {
-        const response = await api.get('/admin/timetable');
-        setTimetable(response.data.data);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching timetable:', err);
-        setError('Failed to load timetable');
-        setLoading(false);
-      }
-    };
+  // Define time slots (hourly from 08:00 to 16:00, ending by 17:00)
+  const timeSlots = [
+    "08:00 - 09:00",
+    "09:00 - 10:00",
+    "10:00 - 11:00",
+    "11:00 - 12:00",
+    "12:00 - 13:00",
+    "13:00 - 14:00",
+    "14:00 - 15:00",
+    "15:00 - 16:00",
+    "16:00 - 17:00",
+  ];
 
+  const fetchTimetable = async () => {
+    try {
+      const response = await api.get('/admin/timetable');
+      setTimetable(response.data.data || []);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching timetable:', err);
+      setError('Failed to load timetable');
+      setLoading(false);
+    }
+  };
+
+  const fetchRooms = async () => {
+    try {
+      const response = await api.get('/admin/rooms');
+      setRooms(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching rooms:', err);
+      setError(prev => prev ? `${prev}; Failed to load rooms` : 'Failed to load rooms');
+    }
+  };
+
+  const fetchLecturers = async () => {
+    try {
+      const response = await api.get('/admin/lecturers');
+      setLecturers(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching lecturers:', err);
+      setError(prev => prev ? `${prev}; Failed to load lecturers` : 'Failed to load lecturers');
+    }
+  };
+
+  useEffect(() => {
     fetchTimetable();
+    fetchRooms();
+    fetchLecturers();
   }, []);
 
   const handleChange = (e) => {
@@ -41,16 +78,19 @@ const TimetableManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Submitted form:', form); // Debug log
     if (form.day && form.time && form.module && form.venue && form.lecturer) {
       try {
-        const response = await api.post('/admin/timetable', form);
-        setTimetable([...timetable, { ...form, id: response.data.id }]);
+        await api.post('/admin/timetable', form);
         setForm({ day: "", time: "", module: "", venue: "", lecturer: "" });
         setSuccess(true);
+        await fetchTimetable();
       } catch (err) {
-        console.error('Error adding timetable entry:', err);
-        setError('Failed to add timetable entry');
+        console.error('Error adding timetable entry:', err.response?.data || err);
+        setError(err.response?.data?.error || 'Failed to add timetable entry');
       }
+    } else {
+      setError('All fields are required');
     }
   };
 
@@ -101,7 +141,7 @@ const TimetableManagement = () => {
           <Card className="shadow-sm rounded">
             <Card.Body>
               <Card.Title className="mb-4">📅 Timetable</Card.Title>
-              <p className="text-muted">Add and view the classroom timetable below.</p>
+              <p className="text-muted">Add and view the classroom timetable below (campus closes at 5:00 PM).</p>
 
               <Form onSubmit={handleSubmit} className="mb-4">
                 <Row className="g-3">
@@ -109,26 +149,39 @@ const TimetableManagement = () => {
                     <Form.Group>
                       <Form.Label>Day</Form.Label>
                       <Form.Control
-                        type="text"
+                        as="select"
                         name="day"
                         value={form.day}
                         onChange={handleChange}
-                        placeholder="e.g. Monday"
                         required
-                      />
+                      >
+                        <option value="">Select Day</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                        <option value="Saturday">Saturday</option>
+                      </Form.Control>
                     </Form.Group>
                   </Col>
                   <Col md={2}>
                     <Form.Group>
                       <Form.Label>Time</Form.Label>
                       <Form.Control
-                        type="text"
+                        as="select"
                         name="time"
                         value={form.time}
                         onChange={handleChange}
-                        placeholder="e.g. 10:00 - 12:00"
                         required
-                      />
+                      >
+                        <option value="">Select Time</option>
+                        {timeSlots.map((slot, index) => (
+                          <option key={index} value={slot}>
+                            {slot}
+                          </option>
+                        ))}
+                      </Form.Control>
                     </Form.Group>
                   </Col>
                   <Col md={2}>
@@ -139,7 +192,7 @@ const TimetableManagement = () => {
                         name="module"
                         value={form.module}
                         onChange={handleChange}
-                        placeholder="e.g. COS101"
+                        placeholder="e.g. Mathematics 101"
                         required
                       />
                     </Form.Group>
@@ -148,26 +201,40 @@ const TimetableManagement = () => {
                     <Form.Group>
                       <Form.Label>Venue</Form.Label>
                       <Form.Control
-                        type="text"
+                        as="select"
                         name="venue"
                         value={form.venue}
                         onChange={handleChange}
-                        placeholder="e.g. Lab 2.1"
                         required
-                      />
+                        disabled={rooms.length === 0}
+                      >
+                        <option value="">Select Venue</option>
+                        {rooms.map(room => (
+                          <option key={room.id} value={room.name}>
+                            {room.name}
+                          </option>
+                        ))}
+                      </Form.Control>
                     </Form.Group>
                   </Col>
                   <Col md={3}>
                     <Form.Group>
                       <Form.Label>Lecturer</Form.Label>
                       <Form.Control
-                        type="text"
+                        as="select"
                         name="lecturer"
                         value={form.lecturer}
                         onChange={handleChange}
-                        placeholder="e.g. Mr. Dlamini"
                         required
-                      />
+                        disabled={lecturers.length === 0}
+                      >
+                        <option value="">Select Lecturer</option>
+                        {lecturers.map(lecturer => (
+                          <option key={lecturer.id} value={lecturer.name}>
+                            {lecturer.name}
+                          </option>
+                        ))}
+                      </Form.Control>
                     </Form.Group>
                   </Col>
                 </Row>

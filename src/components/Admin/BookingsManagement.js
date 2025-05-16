@@ -13,7 +13,11 @@ const BookingsManagement = () => {
     const fetchBookings = async () => {
       try {
         const response = await api.get('/admin/bookings');
-        setBookingList(response.data.data);
+        // Filter to include only room bookings (exclude consultations)
+        const roomBookings = response.data.data.filter(
+          (booking) => !booking.room_name.includes("Consultation")
+        );
+        setBookingList(roomBookings);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching bookings:', err);
@@ -100,10 +104,9 @@ const BookingsManagement = () => {
         <Col md={9} className="p-4">
           <Card className="shadow-sm rounded">
             <Card.Body>
-              <Card.Title className="mb-4">📋 Bookings</Card.Title>
+              <Card.Title className="mb-4">📋 Room Bookings</Card.Title>
               <p className="text-muted">
-                Manage all study room bookings submitted by students and
-                lecturers. You can approve or decline pending requests below.
+                Manage all study room bookings submitted by students and lecturers. You can approve or decline pending requests below.
               </p>
 
               {loading ? (
@@ -111,7 +114,7 @@ const BookingsManagement = () => {
               ) : error ? (
                 <Alert variant="danger">{error}</Alert>
               ) : bookingList.length === 0 ? (
-                <Alert variant="info">No bookings available at the moment.</Alert>
+                <Alert variant="info">No room bookings available at the moment.</Alert>
               ) : (
                 <Table striped bordered hover responsive className="mt-3">
                   <thead className="table-dark">
@@ -141,7 +144,7 @@ const BookingsManagement = () => {
                                 variant="success"
                                 size="sm"
                                 onClick={() =>
-                                  handleStatusChange(booking.id, "confirmed", booking.room_name.includes("Consultation") ? "consultation" : "study-room")
+                                  handleStatusChange(booking.id, "confirmed", "study-room")
                                 }
                                 className="me-2"
                               >
@@ -151,7 +154,7 @@ const BookingsManagement = () => {
                                 variant="danger"
                                 size="sm"
                                 onClick={() =>
-                                  handleStatusChange(booking.id, "rejected", booking.room_name.includes("Consultation") ? "consultation" : "study-room")
+                                  handleStatusChange(booking.id, "rejected", "study-room")
                                 }
                               >
                                 Decline
