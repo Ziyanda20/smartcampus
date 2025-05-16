@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CalendarDays, Clock, Wrench, Bell } from "lucide-react";
-import Navbar from "./NavBar"; // Adjust path if needed
-import api from "../api"; // Your axios instance configured with baseURL
+import Navbar from "./NavBar";
+import api from "../api";
 import { jwtDecode } from "jwt-decode";
 
 export default function LoggedHomePage() {
@@ -28,7 +28,8 @@ export default function LoggedHomePage() {
     let decoded;
     try {
       decoded = jwtDecode(token);
-    } catch {
+    } catch (err) {
+      console.error("Token decoding error:", err);
       setError("Invalid token.");
       setLoading(false);
       return;
@@ -42,18 +43,53 @@ export default function LoggedHomePage() {
 
     const fetchData = async () => {
       try {
+        // Fetch all data in parallel
+        const [bookingsData, maintenanceData, announcementsData] = await Promise.all([
+          fetchBookings(userId),
+          fetchMaintenance(userId, role),
+          fetchAnnouncements(userId)
+        ]);
+
         // If user is a lecturer, get schedule
         if (role === "lecturer") {
           await fetchLecturerSchedule(userId);
         }
 
-        // Fetch common stats (bookings, maintenance, announcements)
-        await fetchOtherStats(userId, role);
+        // Process bookings - active are upcoming with approved/pending status
+        const today = new Date();
+        const activeBookings = bookingsData.filter(booking => {
+          const bookingDate = new Date(booking.booking_date || booking.appointment_time || today);
+          const isUpcoming = bookingDate >= today;
+          const isActiveStatus = ['approved', 'pending'].includes(booking.status?.toLowerCase());
+          return isUpcoming && isActiveStatus;
+        }).length;
+
+        // Get upcoming bookings (next 7 days) with approved/pending status
+        const upcoming = getUpcomingBookings(
+          bookingsData.filter(b => ['approved', 'pending'].includes(b.status?.toLowerCase()))
+        );
+        setUpcomingBookings(upcoming);
+
+        // Process maintenance
+        const pendingMaintenance = maintenanceData.length;
+
+        // Process announcements - only unread (is_read: 0)
+        const unreadAnnouncements = announcementsData.filter(a => a.is_read === 0);
+        const newAnnouncements = unreadAnnouncements.length;
+        setRecentAnnouncements(unreadAnnouncements.slice(0, 3));
+
+        // Update stats
+        setStats({
+          activeBookings,
+          pendingMaintenance,
+          newAnnouncements,
+          classesToday: stats.classesToday
+        });
 
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-        setError("Failed to load dashboard data.");
+        console.error("Error fetching dashboard data:", err.response?.data || err.message);
+        setError("Failed to load dashboard data. Check console for details.");
         setLoading(false);
       }
     };
@@ -61,7 +97,43 @@ export default function LoggedHomePage() {
     fetchData();
   }, []);
 
-  // Fetch lecturer's schedule for today classes count
+  const fetchBookings = async (userId) => {
+    try {
+      const response = await api.get(`/bookings/user/${userId}`);
+      console.log("Bookings response:", response.data);
+      return response.data.data || [];
+    } catch (error) {
+      console.error("Error fetching bookings:", error.response?.data || error.message);
+      return [];
+    }
+  };
+
+  const fetchMaintenance = async (userId, role) => {
+    try {
+      const params = role === "admin" 
+        ? { status: "pending" } 
+        : { status: "pending", userId };
+      
+      const response = await api.get("/maintenance", { params });
+      console.log("Maintenance response:", response.data);
+      return response.data.data || [];
+    } catch (error) {
+      console.error("Error fetching maintenance:", error.response?.data || error.message);
+      return [];
+    }
+  };
+
+  const fetchAnnouncements = async (userId) => {
+    try {
+      const response = await api.get(`/announcements?userId=${userId}&is_read=0`);
+      console.log("Announcements response:", response.data);
+      return response.data.data || [];
+    } catch (error) {
+      console.error("Error fetching announcements:", error.response?.data || error.message);
+      return [];
+    }
+  };
+
   const fetchLecturerSchedule = async (lecturerId) => {
     try {
       const response = await api.get(`/lecturers/${lecturerId}/schedule`);
@@ -69,86 +141,44 @@ export default function LoggedHomePage() {
 
       const todayName = new Date().toLocaleDateString("en-US", {
         weekday: "long",
-      });
+      }).toLowerCase();
 
       const classesTodayCount = schedule.filter(
-        (cls) => cls.day.toLowerCase() === todayName.toLowerCase()
+        (cls) => cls.day.toLowerCase() === todayName
       ).length;
 
-      setStats((prev) => ({
+      setStats(prev => ({
         ...prev,
-        classesToday: classesTodayCount,
+        classesToday: classesTodayCount
       }));
     } catch (error) {
-      console.error("Error fetching lecturer schedule:", error);
+      console.error("Error fetching lecturer schedule:", error.response?.data || error.message);
     }
   };
 
-  // Fetch bookings, maintenance, announcements, and detailed data
-  const fetchOtherStats = async (userId, role) => {
-    try {
-      // Active bookings for the user
-      const bookingsRes = await api.get(`/users/${userId}/bookings`, {
-        params: { status: "active" },
-      });
-      const bookingsData = bookingsRes.data.data || [];
-      const activeBookings = bookingsData.length;
+  const getUpcomingBookings = (bookings) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
 
-      // Fetch upcoming bookings (within the next 7 days)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Start of today in local time (SAST)
-      const nextWeek = new Date(today);
-      nextWeek.setDate(today.getDate() + 7);
-
-      const upcoming = bookingsData
-        .filter((booking) => {
-          const bookingDate = new Date(booking.booking_date);
-          bookingDate.setHours(0, 0, 0, 0); // Normalize to start of day
-          return bookingDate >= today && bookingDate <= nextWeek;
-        })
-        .sort((a, b) => new Date(a.booking_date) - new Date(b.booking_date)); // Sort by date
-      setUpcomingBookings(upcoming);
-
-      // Pending maintenance requests for user (or all if admin)
-      const maintenanceParams =
-        role === "admin"
-          ? { status: "pending" }
-          : { status: "pending", userId };
-
-      const maintenanceRes = await api.get("/maintenance-requests", {
-        params: maintenanceParams,
-      });
-      const pendingMaintenance = maintenanceRes.data.data?.length || 0;
-
-      // Unread announcements / notifications for user (single API call)
-      const announcementsRes = await api.get("/notifications", {
-        params: { userId, is_read: 0 },
-      });
-      const announcementsData = announcementsRes.data.data || [];
-      const newAnnouncements = announcementsData.length;
-
-      // Get recent unread announcements (limit to 3 for display)
-      const recent = announcementsData.slice(0, 3);
-      setRecentAnnouncements(recent);
-
-      setStats((prev) => ({
-        ...prev,
-        activeBookings,
-        pendingMaintenance,
-        newAnnouncements,
-      }));
-    } catch (error) {
-      console.error("Error fetching other stats:", error);
-    }
+    return bookings
+      .filter(booking => {
+        const bookingDate = new Date(booking.booking_date || booking.appointment_time);
+        return bookingDate >= today && bookingDate <= nextWeek;
+      })
+      .sort((a, b) => new Date(a.booking_date || a.appointment_time) - new Date(b.booking_date || b.appointment_time));
   };
 
-  // Format time (e.g., "14:00:00" to "14:00")
   const formatTime = (time) => {
     if (!time) return "";
-    return time.slice(0, 5); // Extracts "HH:MM" from "HH:MM:SS"
+    if (typeof time === 'string') {
+      return time.slice(0, 5); // Extracts "HH:MM" from "HH:MM:SS"
+    }
+    return time.toLocaleTimeString().slice(0, 5); // Fallback for Date objects
   };
 
-  if (loading)
+  if (loading) {
     return (
       <>
         <Navbar />
@@ -157,8 +187,9 @@ export default function LoggedHomePage() {
         </div>
       </>
     );
+  }
 
-  if (error)
+  if (error) {
     return (
       <>
         <Navbar />
@@ -167,11 +198,11 @@ export default function LoggedHomePage() {
         </div>
       </>
     );
+  }
 
   return (
     <>
       <Navbar />
-
       <div className="container my-5">
         <div className="mb-4">
           <h2 className="h4">Welcome back, {firstName}!</h2>
@@ -212,15 +243,21 @@ export default function LoggedHomePage() {
                   <ul className="list-group list-group-flush">
                     {upcomingBookings.map((booking) => (
                       <li key={booking.id} className="list-group-item">
-                        <strong>{booking.room_name || "Consultation"}</strong>
+                        <strong>{booking.room_name || booking.lecturer_name || "Booking"}</strong>
                         <div className="text-muted" style={{ fontSize: "0.9rem" }}>
-                          {new Date(booking.booking_date).toLocaleDateString("en-US", {
+                          {new Date(booking.booking_date || booking.appointment_time).toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
                           })}{" "}
-                          | {formatTime(booking.start_time)} -{" "}
-                          {formatTime(booking.end_time)}
+                          | {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
+                          <span className={`badge ms-2 ${
+                            booking.status?.toLowerCase() === 'approved' 
+                              ? 'bg-success' 
+                              : 'bg-warning text-dark'
+                          }`}>
+                            {booking.status}
+                          </span>
                         </div>
                         <div>Purpose: {booking.purpose}</div>
                       </li>
@@ -243,7 +280,10 @@ export default function LoggedHomePage() {
                   <ul className="list-group list-group-flush">
                     {recentAnnouncements.map((ann) => (
                       <li key={ann.id} className="list-group-item">
-                        <strong>{ann.title}</strong>
+                        <div className="d-flex justify-content-between align-items-start">
+                          <strong>{ann.title}</strong>
+                          <span className="badge bg-primary">New</span>
+                        </div>
                         <div className="text-muted" style={{ fontSize: "0.9rem" }}>
                           {new Date(ann.created_at).toLocaleDateString("en-US", {
                             month: "short",
@@ -270,7 +310,6 @@ export default function LoggedHomePage() {
   );
 }
 
-// Reusable small component for stats cards
 function StatCard({ Icon, title, count }) {
   return (
     <div className="col-md-3 mb-3">

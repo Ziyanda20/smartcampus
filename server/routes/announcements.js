@@ -2,29 +2,36 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 
-// Get announcements for the logged-in user
+// Get announcements for the logged-in user only
 router.get('/', async (req, res) => {
   try {
-    const { userId } = req.query;
+    const { userId, is_read } = req.query;
     
     if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
+      return res.status(400).json({ success: false, error: 'userId is required' });
     }
 
-    const query = `
+    let query = `
       SELECT n.*, u.full_name as sender_name 
       FROM notifications n
-      JOIN users u ON n.user_id = u.id
-      WHERE n.user_id = ? OR n.type = 'system'
-      ORDER BY n.created_at DESC
+      LEFT JOIN users u ON n.user_id = u.id  -- Use LEFT JOIN to handle cases where sender_id might not exist
+      WHERE n.user_id = ?
     `;
-    
-    const [announcements] = await db.execute(query, [userId]);
-    console.log(`Fetched announcements for userId ${userId}:`, announcements); // Debug log
-    res.json({ data: announcements });
+    const params = [userId];
+
+    if (is_read !== undefined) {
+      query += ` AND n.is_read = ?`;
+      params.push(is_read === 'false' ? 0 : is_read); // Handle string or number
+    }
+
+    query += ` ORDER BY n.created_at DESC`;
+
+    const [announcements] = await db.execute(query, params);
+    console.log(`Fetched announcements for userId ${userId}:`, announcements);
+    res.json({ success: true, data: announcements }); // Return data under 'data' key
   } catch (error) {
     console.error('Error fetching announcements:', error);
-    res.status(500).json({ error: 'Failed to fetch announcements' });
+    res.status(500).json({ success: false, error: 'Failed to fetch announcements', details: error.message });
   }
 });
 
@@ -33,15 +40,19 @@ router.patch('/:id/read', async (req, res) => {
   try {
     const { id } = req.params;
     
-    await db.execute(
+    const [result] = await db.execute(
       'UPDATE notifications SET is_read = 1 WHERE id = ?',
       [id]
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Announcement not found' });
+    }
     
-    res.json({ message: 'Announcement marked as read' });
+    res.json({ success: true, message: 'Announcement marked as read' });
   } catch (error) {
     console.error('Error updating announcement:', error);
-    res.status(500).json({ error: 'Failed to update announcement' });
+    res.status(500).json({ success: false, error: 'Failed to update announcement', details: error.message });
   }
 });
 

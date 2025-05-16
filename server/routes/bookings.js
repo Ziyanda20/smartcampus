@@ -17,7 +17,8 @@ router.get('/', async (req, res) => {
         r.building,
         'study-room' as type,
         rb.start_time,
-        rb.end_time
+        rb.end_time,
+        rb.booking_date
       FROM room_bookings rb
       JOIN rooms r ON rb.room_id = r.id
       WHERE rb.user_id = ?
@@ -29,7 +30,8 @@ router.get('/', async (req, res) => {
         CONCAT(l.first_name, ' ', l.last_name) as lecturer_name,
         'consultation' as type,
         TIME(la.appointment_time) as start_time,
-        TIME(DATE_ADD(la.appointment_time, INTERVAL la.duration_minutes MINUTE)) as end_time
+        TIME(DATE_ADD(la.appointment_time, INTERVAL la.duration_minutes MINUTE)) as end_time,
+        DATE(la.appointment_time) as booking_date
       FROM lecturer_appointments la
       JOIN lecturers l ON la.lecturer_id = l.id
       WHERE la.student_id = ?
@@ -95,7 +97,7 @@ router.post('/', async (req, res) => {
       bookingId = result.insertId;
 
       // Create notification for study-room booking
-      const [notificationResult] = await db.query(
+      await db.query(
         `INSERT INTO notifications (user_id, title, message, is_read, created_at, type, related_id) 
          VALUES (?, ?, ?, 0, NOW(), ?, ?)`,
         [
@@ -153,7 +155,7 @@ router.post('/', async (req, res) => {
       );
       bookingId = result.insertId;
 
-      // No notification for consultation (per your request)
+      // No notification for consultation
     } else if (type === 'maintenance') {
       if (!roomId || !description) {
         return res.status(400).json({ 
@@ -171,7 +173,7 @@ router.post('/', async (req, res) => {
       bookingId = result.insertId;
 
       // Create notification for maintenance request
-      const [notificationResult] = await db.query(
+      await db.query(
         `INSERT INTO notifications (user_id, title, message, is_read, created_at, type, related_id) 
          VALUES (?, ?, ?, 0, NOW(), ?, ?)`,
         [
@@ -345,73 +347,55 @@ router.delete('/:id', async (req, res) => {
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { status, type } = req.query;
+    const { status } = req.query;
 
     if (!userId) {
       return res.status(400).json({ success: false, error: 'userId is required' });
     }
 
-    let query = '';
     const params = [userId];
+    let roomQuery = `
+      SELECT 
+        rb.*,
+        r.name as room_name,
+        r.building,
+        'study-room' as type,
+        rb.start_time,
+        rb.end_time,
+        rb.booking_date
+      FROM room_bookings rb
+      JOIN rooms r ON rb.room_id = r.id
+      WHERE rb.user_id = ?
+    `;
+    let consultationQuery = `
+      SELECT 
+        la.*,
+        CONCAT(l.first_name, ' ', l.last_name) as lecturer_name,
+        'consultation' as type,
+        TIME(la.appointment_time) as start_time,
+        TIME(DATE_ADD(la.appointment_time, INTERVAL la.duration_minutes MINUTE)) as end_time,
+        DATE(la.appointment_time) as booking_date
+      FROM lecturer_appointments la
+      JOIN lecturers l ON la.lecturer_id = l.id
+      WHERE la.student_id = ?
+    `;
 
-    if (type === 'study-room') {
-      query = `
-        SELECT 
-          rb.*,
-          r.name as room_name,
-          r.building,
-          'study-room' as type,
-          rb.start_time,
-          rb.end_time
-        FROM room_bookings rb
-        JOIN rooms r ON rb.room_id = r.id
-        WHERE rb.user_id = ?
-      `;
-      if (status) {
-        query += ` AND rb.status = ?`;
-        params.push(status);
-      }
-    } else if (type === 'consultation') {
-      query = `
-        SELECT 
-          la.*,
-          CONCAT(l.first_name, ' ', l.last_name) as lecturer_name,
-          'consultation' as type,
-          TIME(la.appointment_time) as start_time,
-          TIME(DATE_ADD(la.appointment_time, INTERVAL la.duration_minutes MINUTE)) as end_time
-        FROM lecturer_appointments la
-        JOIN lecturers l ON la.lecturer_id = l.id
-        WHERE la.student_id = ?
-      `;
-      if (status) {
-        query += ` AND la.status = ?`;
-        params.push(status);
-      }
-    } else if (type === 'maintenance') {
-      query = `
-        SELECT 
-          mr.*,
-          r.name as room_name,
-          'maintenance' as type
-        FROM maintenance_requests mr
-        JOIN rooms r ON mr.room_id = r.id
-        WHERE mr.user_id = ?
-      `;
-      if (status) {
-        query += ` AND mr.status = ?`;
-        params.push(status);
-      }
-    } else {
-      return res.status(400).json({ success: false, error: 'Invalid type' });
+    if (status) {
+      roomQuery += ` AND rb.status = ?`;
+      consultationQuery += ` AND la.status = ?`;
+      params.push(status);
     }
 
-    const [results] = await db.query(query, params);
-    return res.status(200).json({ success: true, data: results });
+    const [roomBookings] = await db.query(roomQuery, params);
+    const [consultations] = await db.query(consultationQuery, params);
+
+    const allBookings = [...roomBookings, ...consultations];
+    return res.status(200).json({ success: true, data: allBookings });
   } catch (error) {
-    console.error('Error fetching user records:', error);
+    console.error('Error fetching user bookings:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to fetch user records',
+      error: 'Failed to fetch user bookings',
       details: error.message,
     });
   }

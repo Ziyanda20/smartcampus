@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Container, Card, Table, Spinner, Alert } from "react-bootstrap";
 import Navbar from "../components/NavBar";
-import api from "../api"; // Your configured Axios instance
+import api from "../api";
+import { jwtDecode } from "jwt-decode";
 
 export default function Timetable() {
   const [timetable, setTimetable] = useState([]);
@@ -11,22 +12,26 @@ export default function Timetable() {
   useEffect(() => {
     const fetchTimetable = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
         const token = localStorage.getItem("token");
+        if (!token) throw new Error("No token found - please log in");
 
-        if (!user || user.role !== "student" || !token) {
-          throw new Error("Access denied or student not logged in");
+        const decoded = jwtDecode(token);
+        if (decoded.role.toLowerCase() !== "student") {
+          throw new Error("Access denied - student account required");
         }
 
         const response = await api.get(`/timetable`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        setTimetable(response.data.data);
+        setTimetable(response.data.data || []);
       } catch (err) {
-        setError(err.message || "Failed to fetch timetable");
+        console.error("Error fetching timetable:", err.response?.data || err.message);
+        setError(
+          err.response?.data?.error ||
+          err.message ||
+          "Failed to fetch timetable"
+        );
       } finally {
         setLoading(false);
       }

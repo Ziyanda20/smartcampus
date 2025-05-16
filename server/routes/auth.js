@@ -34,22 +34,43 @@ router.post('/register', async (req, res) => {
       ]
     );
 
+    const userId = result.insertId;
+
+    // Assign exactly 3 random distinct class_ids
+    const [classes] = await db.execute('SELECT id FROM classes WHERE id IN (1, 2, 3, 4, 46, 47, 48, 49, 50)');
+    if (classes.length < 3) {
+      return res.status(500).json({ error: 'Not enough classes available to assign (minimum 3 required)' });
+    }
+
+    // Shuffle the classes array and pick the first 3
+    const shuffledClasses = classes.sort(() => Math.random() - 0.5);
+    const assignedClassIds = shuffledClasses.slice(0, 3).map(classRow => classRow.id);
+
+    // Insert the 3 class assignments into student_classes
+    for (const classId of assignedClassIds) {
+      await db.execute(
+        'INSERT INTO student_classes (student_id, class_id) VALUES (?, ?)',
+        [userId, classId]
+      );
+    }
+
     const token = jwt.sign(
       {
-        id: result.insertId,
+        id: userId,
         fullName: fullName.trim(),
         username: username.trim().toLowerCase(),
         email: email.trim().toLowerCase(),
         role: role.toLowerCase(),
+        class_ids: assignedClassIds, // Include all assigned class_ids in the token
       },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    res.status(201).json({ token, role: role.toLowerCase() });
+    res.status(201).json({ token, role: role.toLowerCase(), class_ids: assignedClassIds });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed. Please try again.' });
+    res.status(500).json({ error: 'Registration failed. Please try again.', details: error.message });
   }
 });
 
@@ -69,6 +90,31 @@ router.post('/login', async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) return res.status(401).json({ error: 'Invalid credentials' });
 
+    // Fetch all class_ids for the user
+    const [classRows] = await db.execute(
+      'SELECT class_id FROM student_classes WHERE student_id = ?',
+      [user.id]
+    );
+    const class_ids = classRows.map(row => row.class_id);
+
+    if (class_ids.length === 0) {
+      // If no classes assigned, assign 3 random classes
+      const [classes] = await db.execute('SELECT id FROM classes WHERE id IN (1, 2, 3, 4, 46, 47, 48, 49, 50)');
+      if (classes.length < 3) {
+        return res.status(500).json({ error: 'Not enough classes available to assign (minimum 3 required)' });
+      }
+      const shuffledClasses = classes.sort(() => Math.random() - 0.5);
+      const assignedClassIds = shuffledClasses.slice(0, 3).map(classRow => classRow.id);
+
+      for (const classId of assignedClassIds) {
+        await db.execute(
+          'INSERT INTO student_classes (student_id, class_id) VALUES (?, ?)',
+          [user.id, classId]
+        );
+      }
+      class_ids.push(...assignedClassIds);
+    }
+
     const token = jwt.sign(
       {
         id: user.id,
@@ -76,18 +122,17 @@ router.post('/login', async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role,
+        class_ids: class_ids, // Return all class_ids
       },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    res.json({ token, role: user.role });
+    res.json({ token, role: user.role, class_ids });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed. Please try again.' });
   }
 });
-
-
 
 module.exports = router;

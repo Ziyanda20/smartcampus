@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Container, Card, Tabs, Tab, ListGroup, Spinner, Alert } from "react-bootstrap";
-import NavBar from "../components/NavBar";
+import Navbar from "../components/NavBar";
 import api from "../api";
-import { jwtDecode } from 'jwt-decode';
+import { jwtDecode } from "jwt-decode";
 
 export default function Announcements() {
   const [key, setKey] = useState("all");
@@ -14,17 +14,16 @@ export default function Announcements() {
     const fetchAnnouncements = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) {
-          throw new Error("You are not logged in");
-        }
-        
+        if (!token) throw new Error("You are not logged in");
+
         const decoded = jwtDecode(token);
         console.log("Decoded userId:", decoded.id); // Debug log
         const response = await api.get(`/announcements?userId=${decoded.id}`);
-        console.log("Announcements response:", response.data.data); // Debug log
+        console.log("Announcements response:", response.data); // Debug full response
         setAnnouncements(response.data.data || []);
       } catch (err) {
-        setError(err.message);
+        console.error("Error fetching announcements:", err.response?.data || err.message);
+        setError(err.response?.data?.error || err.message || "Failed to fetch announcements");
       } finally {
         setLoading(false);
       }
@@ -40,13 +39,13 @@ export default function Announcements() {
         ann.id === id ? { ...ann, is_read: 1 } : ann
       ));
     } catch (err) {
-      console.error("Failed to mark as read:", err);
+      console.error("Failed to mark as read:", err.response?.data || err.message);
     }
   };
 
   const filterAnnouncements = (type) => {
-    if (type === "all") return announcements; // Shows all notifications for the logged-in user
-    if (type === "unread") return announcements.filter(a => !a.is_read);
+    if (type === "all") return announcements;
+    if (type === "unread") return announcements.filter(a => a.is_read === 0);
     return announcements.filter(a => a.type === type);
   };
 
@@ -58,11 +57,11 @@ export default function Announcements() {
             key={item.id} 
             action 
             onClick={() => markAsRead(item.id)}
-            className={!item.is_read ? "fw-bold" : ""}
+            className={item.is_read === 0 ? "fw-bold" : ""}
           >
             <strong>{item.title}</strong>
             <div className="text-muted" style={{ fontSize: "0.9rem" }}>
-              {new Date(item.created_at).toLocaleDateString()} - {item.sender_name || 'System'}
+              {new Date(item.created_at).toLocaleDateString()}{" "} - {item.sender_name || 'System'}
             </div>
             <div>{item.message}</div>
           </ListGroup.Item>
@@ -77,8 +76,8 @@ export default function Announcements() {
 
   if (loading) return (
     <>
-      <NavBar />
-      <Container className="py-4">
+      <Navbar />
+      <Container className="py-4 text-center">
         <Spinner animation="border" />
       </Container>
     </>
@@ -86,7 +85,7 @@ export default function Announcements() {
 
   if (error) return (
     <>
-      <NavBar />
+      <Navbar />
       <Container className="py-4">
         <Alert variant="danger">{error}</Alert>
       </Container>
@@ -95,7 +94,7 @@ export default function Announcements() {
 
   return (
     <>
-      <NavBar />
+      <Navbar />
       <Container className="py-4">
         <h2 className="mb-4">Announcements</h2>
         <Card>
