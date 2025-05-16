@@ -1,51 +1,45 @@
-import React, { useState } from "react";
-import {Card,Table,Badge,Alert,Dropdown,Container,Row,Col,Nav,} from "react-bootstrap";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Card, Table, Badge, Alert, Dropdown, Container, Row, Col, Nav, Button } from "react-bootstrap";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../../api"; // Your axios instance configured with baseURL
 
-// Dummy data for maintenance requests
-const dummyRequests = [
-  {
-    id: 1,
-    location: "Block A - Room 204",
-    issue: "Broken window",
-    dateReported: "2025-05-10",
-    status: "pending",
-    requestedBy: "Student - Zanele M",
-  },
-  {
-    id: 2,
-    location: "Library - 2nd Floor",
-    issue: "Leaking ceiling",
-    dateReported: "2025-05-08",
-    status: "in progress",
-    requestedBy: "Lecturer - Mr. Khumalo",
-  },
-  {
-    id: 3,
-    location: "Admin Office",
-    issue: "Air conditioner not working",
-    dateReported: "2025-05-07",
-    status: "completed",
-    requestedBy: "Admin - Ms. Molefe",
-  },
-  {
-    id: 4,
-    location: "Cafeteria",
-    issue: "Faulty light switch",
-    dateReported: "2025-05-09",
-    status: "pending",
-    requestedBy: "Student - Themba D",
-  },
-];
+const MaintenanceManagement = () => {
+  const [maintenanceList, setMaintenanceList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-const MaintenanceManagement = ({ requests = dummyRequests }) => {
-  const [maintenanceList, setMaintenanceList] = useState(requests);
+  useEffect(() => {
+    const fetchMaintenanceRequests = async () => {
+      try {
+        const response = await api.get('/admin/maintenance');
+        setMaintenanceList(response.data.data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching maintenance requests:', err);
+        setError('Failed to load maintenance requests');
+        setLoading(false);
+      }
+    };
 
-  const handleStatusChange = (id, newStatus) => {
-    const updated = maintenanceList.map((req) =>
-      req.id === id ? { ...req, status: newStatus } : req
-    );
-    setMaintenanceList(updated);
+    fetchMaintenanceRequests();
+  }, []);
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await api.patch(`/admin/maintenance/${id}/status`, { status: newStatus });
+      setMaintenanceList((prev) =>
+        prev.map((req) => (req.id === id ? { ...req, status: newStatus } : req))
+      );
+    } catch (err) {
+      console.error('Error updating maintenance request status:', err);
+      setError('Failed to update maintenance request status');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
   };
 
   const getStatusBadge = (status) => {
@@ -67,17 +61,23 @@ const MaintenanceManagement = ({ requests = dummyRequests }) => {
 
   return (
     <Container fluid className="p-0">
-      {/* Top Dashboard Header */}
-      <div className="dashboard-header text-white p-3 mb-0" >
+      <div className="dashboard-header text-white p-3 mb-0 d-flex justify-content-between align-items-center">
         <h1 className="mb-0">Admin Dashboard</h1>
+        <Button variant="danger" onClick={handleLogout}>
+          Logout
+        </Button>
       </div>
 
       <Row className="no-gutters">
-        {/* Left Sidebar */}
-        <Col md={3} className="left-sidebar text-white" >
+        <Col md={3} className="left-sidebar text-white">
           <div className="p-3">
             <h4 className="mb-4">CampusConnect</h4>
             <Nav className="flex-column">
+              <Nav.Item>
+                <Nav.Link as={Link} to="/analytics-page" className="text-white">
+                  Back to Dashboard
+                </Nav.Link>
+              </Nav.Item>
               <Nav.Item>
                 <Nav.Link as={Link} to="/maintenance-admin" className="text-white">
                   Maintenance Management
@@ -97,16 +97,19 @@ const MaintenanceManagement = ({ requests = dummyRequests }) => {
           </div>
         </Col>
 
-        {/* Main Content Area */}
         <Col md={9} className="p-4">
           <Card className="shadow-sm rounded">
             <Card.Body>
-              <Card.Title className="mb-4">🛠️ Maintenance </Card.Title>
+              <Card.Title className="mb-4">🛠️ Maintenance</Card.Title>
               <p className="text-muted">
                 Below are all submitted maintenance requests. You can update the status to reflect the current progress.
               </p>
 
-              {maintenanceList.length === 0 ? (
+              {loading ? (
+                <p>Loading...</p>
+              ) : error ? (
+                <Alert variant="danger">{error}</Alert>
+              ) : maintenanceList.length === 0 ? (
                 <Alert variant="info">No maintenance requests at the moment.</Alert>
               ) : (
                 <Table striped bordered hover responsive className="mt-3">
@@ -127,8 +130,8 @@ const MaintenanceManagement = ({ requests = dummyRequests }) => {
                         <td>{req.id}</td>
                         <td>{req.location}</td>
                         <td>{req.issue}</td>
-                        <td>{req.dateReported}</td>
-                        <td>{req.requestedBy}</td>
+                        <td>{new Date(req.date_reported).toLocaleDateString()}</td>
+                        <td>{req.requested_by}</td>
                         <td>{getStatusBadge(req.status)}</td>
                         <td>
                           <Dropdown onSelect={(status) => handleStatusChange(req.id, status)}>

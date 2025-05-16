@@ -12,6 +12,8 @@ export default function LoggedHomePage() {
     pendingMaintenance: 0,
     newAnnouncements: 0,
   });
+  const [upcomingBookings, setUpcomingBookings] = useState([]);
+  const [recentAnnouncements, setRecentAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -50,7 +52,7 @@ export default function LoggedHomePage() {
 
         setLoading(false);
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching dashboard data:", err);
         setError("Failed to load dashboard data.");
         setLoading(false);
       }
@@ -69,8 +71,9 @@ export default function LoggedHomePage() {
         weekday: "long",
       });
 
-      const classesTodayCount = schedule.filter((cls) => cls.day === todayName)
-        .length;
+      const classesTodayCount = schedule.filter(
+        (cls) => cls.day.toLowerCase() === todayName.toLowerCase()
+      ).length;
 
       setStats((prev) => ({
         ...prev,
@@ -78,18 +81,33 @@ export default function LoggedHomePage() {
       }));
     } catch (error) {
       console.error("Error fetching lecturer schedule:", error);
-      // Could consider showing a message or fallback
     }
   };
 
-  // Fetch bookings, maintenance, announcements counts
+  // Fetch bookings, maintenance, announcements, and detailed data
   const fetchOtherStats = async (userId, role) => {
     try {
       // Active bookings for the user
       const bookingsRes = await api.get(`/users/${userId}/bookings`, {
         params: { status: "active" },
       });
-      const activeBookings = bookingsRes.data.data?.length || 0;
+      const bookingsData = bookingsRes.data.data || [];
+      const activeBookings = bookingsData.length;
+
+      // Fetch upcoming bookings (within the next 7 days)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today in local time (SAST)
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+
+      const upcoming = bookingsData
+        .filter((booking) => {
+          const bookingDate = new Date(booking.booking_date);
+          bookingDate.setHours(0, 0, 0, 0); // Normalize to start of day
+          return bookingDate >= today && bookingDate <= nextWeek;
+        })
+        .sort((a, b) => new Date(a.booking_date) - new Date(b.booking_date)); // Sort by date
+      setUpcomingBookings(upcoming);
 
       // Pending maintenance requests for user (or all if admin)
       const maintenanceParams =
@@ -102,11 +120,16 @@ export default function LoggedHomePage() {
       });
       const pendingMaintenance = maintenanceRes.data.data?.length || 0;
 
-      // Unread announcements / notifications for user
+      // Unread announcements / notifications for user (single API call)
       const announcementsRes = await api.get("/notifications", {
         params: { userId, is_read: 0 },
       });
-      const newAnnouncements = announcementsRes.data.data?.length || 0;
+      const announcementsData = announcementsRes.data.data || [];
+      const newAnnouncements = announcementsData.length;
+
+      // Get recent unread announcements (limit to 3 for display)
+      const recent = announcementsData.slice(0, 3);
+      setRecentAnnouncements(recent);
 
       setStats((prev) => ({
         ...prev,
@@ -116,8 +139,13 @@ export default function LoggedHomePage() {
       }));
     } catch (error) {
       console.error("Error fetching other stats:", error);
-      // Optionally set defaults here if you want
     }
+  };
+
+  // Format time (e.g., "14:00:00" to "14:00")
+  const formatTime = (time) => {
+    if (!time) return "";
+    return time.slice(0, 5); // Extracts "HH:MM" from "HH:MM:SS"
   };
 
   if (loading)
@@ -180,9 +208,29 @@ export default function LoggedHomePage() {
             <div className="card">
               <div className="card-header">Upcoming Bookings</div>
               <div className="card-body">
-                <p className="card-text">
-                  You have {stats.activeBookings} bookings this week.
-                </p>
+                {upcomingBookings.length > 0 ? (
+                  <ul className="list-group list-group-flush">
+                    {upcomingBookings.map((booking) => (
+                      <li key={booking.id} className="list-group-item">
+                        <strong>{booking.room_name || "Consultation"}</strong>
+                        <div className="text-muted" style={{ fontSize: "0.9rem" }}>
+                          {new Date(booking.booking_date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}{" "}
+                          | {formatTime(booking.start_time)} -{" "}
+                          {formatTime(booking.end_time)}
+                        </div>
+                        <div>Purpose: {booking.purpose}</div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="card-text text-muted">
+                    No upcoming bookings within the next 7 days.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -191,10 +239,28 @@ export default function LoggedHomePage() {
             <div className="card">
               <div className="card-header">Announcements</div>
               <div className="card-body">
-                <p className="card-text">
-                  There are {stats.newAnnouncements} new announcements
-                  available.
-                </p>
+                {recentAnnouncements.length > 0 ? (
+                  <ul className="list-group list-group-flush">
+                    {recentAnnouncements.map((ann) => (
+                      <li key={ann.id} className="list-group-item">
+                        <strong>{ann.title}</strong>
+                        <div className="text-muted" style={{ fontSize: "0.9rem" }}>
+                          {new Date(ann.created_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}{" "}
+                          - {ann.sender_name || "System"}
+                        </div>
+                        <div>{ann.message}</div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="card-text text-muted">
+                    No new announcements available.
+                  </p>
+                )}
               </div>
             </div>
           </div>

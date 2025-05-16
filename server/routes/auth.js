@@ -4,147 +4,90 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 
-// Register student
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
-    
+    const { fullName, username, email, password, role = 'student' } = req.body;
+
     // Validate input
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'All fields are required' });
-    }
+    if (!fullName?.trim()) return res.status(400).json({ error: 'Full name is required' });
+    if (!username?.trim()) return res.status(400).json({ error: 'Username is required' });
+    if (!email?.trim()) return res.status(400).json({ error: 'Email is required' });
+    if (!password) return res.status(400).json({ error: 'Password is required' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
-    // Check if user exists by email
-    const [emailCheck] = await db.execute(
-      'SELECT * FROM users WHERE email = ?', 
-      [email]
-    );
-    
-    if (emailCheck.length > 0) {
-      return res.status(400).json({ error: 'Email already in use' });
-    }
+    const [emailRows] = await db.execute('SELECT 1 FROM users WHERE email = ?', [email.trim().toLowerCase()]);
+    const [usernameRows] = await db.execute('SELECT 1 FROM users WHERE username = ?', [username.trim().toLowerCase()]);
 
-    // Check if username exists
-    const [usernameCheck] = await db.execute(
-      'SELECT * FROM users WHERE username = ?',
-      [username]
-    );
+    if (emailRows.length > 0) return res.status(400).json({ error: 'Email already in use' });
+    if (usernameRows.length > 0) return res.status(400).json({ error: 'Username already taken' });
 
-    if (usernameCheck.length > 0) {
-      return res.status(400).json({ error: 'Username already taken' });
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    
-    // Create user
+    // Hash password and insert user
+    const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await db.execute(
-      'INSERT INTO users (username, email, password, role, status) VALUES (?, ?, ?, "student", "active")',
-      [username, email, hashedPassword]
+      'INSERT INTO users (full_name, username, email, password, role) VALUES (?, ?, ?, ?, ?)',
+      [
+        fullName.trim(),
+        username.trim().toLowerCase(),
+        email.trim().toLowerCase(),
+        hashedPassword,
+        role.toLowerCase(),
+      ]
     );
 
-    // Generate token
     const token = jwt.sign(
-      { id: result.insertId, role: 'student' },
+      {
+        id: result.insertId,
+        fullName: fullName.trim(),
+        username: username.trim().toLowerCase(),
+        email: email.trim().toLowerCase(),
+        role: role.toLowerCase(),
+      },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    res.status(201).json({ 
-      token,
-      role: 'student'
-    });
+    res.status(201).json({ token, role: role.toLowerCase() });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Registration failed. Please try again.' });
   }
 });
 
-// Login
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
-    // Validate input
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
-    }
+    if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
 
-    // Find user by username
-    const [users] = await db.execute(
-      'SELECT * FROM users WHERE username = ?',
-      [username]
+    const [rows] = await db.execute(
+      'SELECT id, username, full_name, email, password, role FROM users WHERE username = ?',
+      [username.trim().toLowerCase()]
     );
-    
-    if (users.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
 
-    const user = users[0];
-    
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
 
-    // Check if user is active
-    if (user.status !== 'active') {
-      return res.status(403).json({ error: 'Account is not active' });
-    }
+    const user = rows[0];
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) return res.status(401).json({ error: 'Invalid credentials' });
 
-    // Generate token
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      {
+        id: user.id,
+        fullName: user.full_name,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    res.json({ 
-      token,
-      role: user.role
-    });
+    res.json({ token, role: user.role });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed. Please try again.' });
   }
 });
 
-// Get current user
-router.get('/me', async (req, res) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader) {
-      return res.status(401).json({ error: 'Authorization header missing' });
-    }
 
-    const token = authHeader.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'Token missing' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const [users] = await db.execute(
-      'SELECT id, username, email, role FROM users WHERE id = ?',
-      [decoded.id]
-    );
-    
-    if (users.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json(users[0]);
-  } catch (error) {
-    console.error('Get user error:', error);
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-    
-    res.status(500).json({ error: 'Failed to fetch user data' });
-  }
-});
 
 module.exports = router;

@@ -1,50 +1,45 @@
-import React, { useState } from "react";
-import {Card,Button,Table, Badge,Alert,Container,Row,Col,Nav,} from "react-bootstrap";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Card, Button, Table, Badge, Alert, Container, Row, Col, Nav } from "react-bootstrap";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../../api"; // Your axios instance configured with baseURL
 
-const dummyBookings = [
-  {
-    id: 1,
-    roomId: "Study Room A",
-    purpose: "Group Study",
-    date: "2025-05-12",
-    status: "pending",
-    requestedBy: "Student - Thabo Nkosi",
-  },
-  {
-    id: 2,
-    roomId: "Study Room B",
-    purpose: "Lecture Prep",
-    date: "2025-05-10",
-    status: "confirmed",
-    requestedBy: "Lecturer - Dr. Maseko",
-  },
-  {
-    id: 3,
-    roomId: "Study Room C",
-    purpose: "Assignment Discussion",
-    date: "2025-05-08",
-    status: "rejected",
-    requestedBy: "Student - Lerato M",
-  },
-  {
-    id: 4,
-    roomId: "Study Room D",
-    purpose: "Consultation",
-    date: "2025-05-11",
-    status: "pending",
-    requestedBy: "Lecturer - Prof. Dlamini",
-  },
-];
+const BookingsManagement = () => {
+  const [bookingList, setBookingList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-const BookingsManagement = ({ bookings = dummyBookings }) => {
-  const [bookingList, setBookingList] = useState(bookings);
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        const response = await api.get('/admin/bookings');
+        setBookingList(response.data.data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching bookings:', err);
+        setError('Failed to load bookings');
+        setLoading(false);
+      }
+    };
 
-  const handleStatusChange = (id, newStatus) => {
-    const updated = bookingList.map((b) =>
-      b.id === id ? { ...b, status: newStatus } : b
-    );
-    setBookingList(updated);
+    fetchBookings();
+  }, []);
+
+  const handleStatusChange = async (id, newStatus, type) => {
+    try {
+      await api.patch(`/admin/bookings/${id}/status`, { status: newStatus, type });
+      setBookingList((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b))
+      );
+    } catch (err) {
+      console.error('Error updating booking status:', err);
+      setError('Failed to update booking status');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
   };
 
   const getStatusBadge = (status) => {
@@ -66,17 +61,23 @@ const BookingsManagement = ({ bookings = dummyBookings }) => {
 
   return (
     <Container fluid className="p-0">
-      {/* Top Dashboard Header */}
-      <div className="dashboard-header text-white p-3 mb-0" >
+      <div className="dashboard-header text-white p-3 mb-0 d-flex justify-content-between align-items-center">
         <h1 className="mb-0">Admin Dashboard</h1>
+        <Button variant="danger" onClick={handleLogout}>
+          Logout
+        </Button>
       </div>
 
       <Row className="no-gutters">
-        {/* Left Sidebar */}
-        <Col md={3} className="left-sidebar text-white" >
+        <Col md={3} className="left-sidebar text-white">
           <div className="p-3">
             <h4 className="mb-4">CampusConnect</h4>
             <Nav className="flex-column">
+              <Nav.Item>
+                <Nav.Link as={Link} to="/analytics-page" className="text-white">
+                  Back to Dashboard
+                </Nav.Link>
+              </Nav.Item>
               <Nav.Item>
                 <Nav.Link as={Link} to="/maintenance-admin" className="text-white">
                   Maintenance Management
@@ -96,20 +97,21 @@ const BookingsManagement = ({ bookings = dummyBookings }) => {
           </div>
         </Col>
 
-        {/* Main Content Area */}
         <Col md={9} className="p-4">
           <Card className="shadow-sm rounded">
             <Card.Body>
-              <Card.Title className="mb-4">📋 Bookings </Card.Title>
+              <Card.Title className="mb-4">📋 Bookings</Card.Title>
               <p className="text-muted">
                 Manage all study room bookings submitted by students and
                 lecturers. You can approve or decline pending requests below.
               </p>
 
-              {bookingList.length === 0 ? (
-                <Alert variant="info">
-                  No bookings available at the moment.
-                </Alert>
+              {loading ? (
+                <p>Loading...</p>
+              ) : error ? (
+                <Alert variant="danger">{error}</Alert>
+              ) : bookingList.length === 0 ? (
+                <Alert variant="info">No bookings available at the moment.</Alert>
               ) : (
                 <Table striped bordered hover responsive className="mt-3">
                   <thead className="table-dark">
@@ -127,10 +129,10 @@ const BookingsManagement = ({ bookings = dummyBookings }) => {
                     {bookingList.map((booking) => (
                       <tr key={booking.id}>
                         <td>{booking.id}</td>
-                        <td>{booking.roomId}</td>
+                        <td>{booking.room_name}</td>
                         <td>{booking.purpose}</td>
                         <td>{booking.date}</td>
-                        <td>{booking.requestedBy}</td>
+                        <td>{booking.requested_by}</td>
                         <td>{getStatusBadge(booking.status)}</td>
                         <td>
                           {booking.status === "pending" ? (
@@ -139,7 +141,7 @@ const BookingsManagement = ({ bookings = dummyBookings }) => {
                                 variant="success"
                                 size="sm"
                                 onClick={() =>
-                                  handleStatusChange(booking.id, "confirmed")
+                                  handleStatusChange(booking.id, "confirmed", booking.room_name.includes("Consultation") ? "consultation" : "study-room")
                                 }
                                 className="me-2"
                               >
@@ -149,7 +151,7 @@ const BookingsManagement = ({ bookings = dummyBookings }) => {
                                 variant="danger"
                                 size="sm"
                                 onClick={() =>
-                                  handleStatusChange(booking.id, "rejected")
+                                  handleStatusChange(booking.id, "rejected", booking.room_name.includes("Consultation") ? "consultation" : "study-room")
                                 }
                               >
                                 Decline
