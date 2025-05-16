@@ -26,6 +26,8 @@ app.use("/api/announcements", require("./routes/announcements"));
 app.use("/api/maintenance", require("./routes/maintenance"));
 app.use("/api/timetable", require("./routes/timetable"));
 app.use("/users", require("./routes/users"));
+app.use("/api/bookingslecturer", require("./routes/bookingslecturer"));
+app.use("/api/lecturer-announcements", require("./routes/announcementLecturer"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

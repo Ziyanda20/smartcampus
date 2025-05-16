@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Container, Form, Button, Card, ListGroup } from "react-bootstrap";
 import LecturerNavBar from "./LecturerNavBar";
+import api from "../../api"; // Your axios instance configured with baseURL
 
 export default function AnnouncementLecturer() {
   const [announcements, setAnnouncements] = useState([]);
@@ -8,24 +9,46 @@ export default function AnnouncementLecturer() {
   const [type, setType] = useState("important");
   const [date, setDate] = useState("");
 
-  const handleSubmit = (e) => {
+  // Fetch announcements on component mount
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const res = await api.get("/lecturer-announcements");
+        setAnnouncements(res.data);
+      } catch (err) {
+        console.error("Failed to fetch announcements:", err);
+        alert("Could not load announcements from the server.");
+      }
+    };
+
+    fetchAnnouncements();
+  }, []);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !date) {
       alert("Please fill in all fields.");
       return;
     }
 
-    const newAnnouncement = {
-      id: announcements.length + 1,
-      title,
-      type,
-      date,
-    };
+    try {
+      const res = await api.post("/lecturer-announcements", {
+        title,
+        type,
+        date,
+      });
 
-    setAnnouncements([newAnnouncement, ...announcements]);
-    setTitle("");
-    setType("important");
-    setDate("");
+      // Add the newly created announcement to the list
+      setAnnouncements([res.data, ...announcements]);
+
+      // Reset form fields
+      setTitle("");
+      setType("important");
+      setDate("");
+    } catch (err) {
+      console.error("Error posting announcement:", err);
+      alert("Failed to post announcement.");
+    }
   };
 
   return (
